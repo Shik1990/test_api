@@ -1,0 +1,10 @@
+services:
+  api:
+    volumes:
+      - ./api:/app
+    environment:
+      DEBUG: "true"
+
+  db:
+    ports:
+      - "5432:5432"

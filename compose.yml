@@ -1,0 +1,63 @@
+services:
+  api:
+    build: ./api
+    ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: "postgresql://myuser:mypass@db:5432/mydb"
+      REDIS_URL: "redis://redis:6379/0"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - shared-logs:/var/log/app
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypass
+      POSTGRES_DB: mydb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    profiles: [dev, debug]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  pgdata:
+  redisdata:
+  shared-logs:
+    external: true
+    name: shared-logs
+  
+networks:
+  frontend:
+  backend:
+    internal: true
+  

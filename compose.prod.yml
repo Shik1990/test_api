@@ -1,0 +1,11 @@
+services:
+  api:
+    restart: always
+
+  db:
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

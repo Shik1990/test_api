@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+/dist/
+/build/
+/*.egg-info/
+*.egg
+
+# Виртуальное окружение
+.venv/
+venv/
+env/
+.env
+.dockerignore
+
+# Runtime data
+save_game/
+DB/
+log/
+logs/
+*.log
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Данные (приватные!)
+data/*.txt
+
+game/config.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Тесты
+.pytest_cache/
+tests/
+tests/*.py
+.coverage
+htmlcov/
+/entry.json
+.json
+pytest.ini
+
+#save game
+
+save_game/*
+
+
+*.swo
+*~
+
+
+# Profiling
+profile.stats
+Dockerfile

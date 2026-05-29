@@ -1,0 +1,2 @@
+COMPOSE_PROJECT_NAME=mystack-dev docker compose up -d
+COMPOSE_PROJECT_NAME=mystack-prod docker compose -f compose.yml -f compose.prod.yml up -d

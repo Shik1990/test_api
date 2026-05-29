@@ -1,0 +1,47 @@
+name: FastAPI CI Pipeline
+
+# Когда запускать пайплайн
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Основные переменные окружения
+env:
+  PYTHON_VERSION: "3.11"
+
+# Джобы (параллельные задачи)
+jobs:
+  test:
+    name: Run Unit Tests
+    # На какой машине запускать (GitHub-hosted runner)
+    runs-on: ubuntu-latest
+    
+    # Шаги внутри джобы
+    steps:
+      # Шаг 1: Скачать код из репозитория
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # Шаг 2: Установить Python
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          # Автоматически кэшировать pip-зависимости
+          cache: pip
+      
+      # Шаг 3: Установить зависимости
+      - name: Install dependencies
+        working-directory: api
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install pytest pytest-asyncio httpx
+      
+      # Шаг 4: Запустить тесты
+      - name: Run unit tests
+        working-directory: api
+        run: pytest -v

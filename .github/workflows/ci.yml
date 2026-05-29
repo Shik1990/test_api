@@ -34,6 +34,7 @@ jobs:
       
       # Шаг 3: Установить зависимости
       - name: Install dependencies
+        working-directory: api
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
@@ -41,4 +42,5 @@ jobs:
       
       # Шаг 4: Запустить тесты
       - name: Run unit tests
+        working-directory: api
         run: pytest -v

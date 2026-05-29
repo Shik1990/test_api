@@ -1,69 +1,63 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock
-from main import app  # предполагаем, что твой код лежит в api/main.py
+from main import app  # предполагается, что main.py лежит рядом
 
 
 @pytest.fixture
-async def client():
+def mock_app_state():
     """
-    Фикстура, которая мокирует базу данных и Redis,
-    и возвращает асинхронного тестового клиента.
+    Обычная (синхронная) фикстура, которая настраивает моки
+    и временно подменяет состояние приложения.
+    После теста состояние очищается.
     """
-    # Создаём моки
     mock_db = AsyncMock()
     mock_redis = AsyncMock()
-
-    # Подменяем состояние приложения (без вызова startup)
+    # Сохраняем оригинальное состояние (если было)
+    original_db = getattr(app.state, "db", None)
+    original_redis = getattr(app.state, "redis", None)
     app.state.db = mock_db
     app.state.redis = mock_redis
-
-    # ASGITransport позволяет тестировать приложение напрямую, без сервера
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-
-    # После теста можно сбросить состояние (опционально)
-    app.state.db = None
-    app.state.redis = None
+    yield mock_db, mock_redis
+    # Возвращаем как было
+    app.state.db = original_db
+    app.state.redis = original_redis
 
 
 @pytest.mark.asyncio
-async def test_root_redis_miss(client):
+async def test_root_redis_miss(mock_app_state):
     """Кэш Redis пуст – код должен взять счётчик из БД и увеличить."""
-    # Настраиваем возвраты моков
-    app.state.redis.get.return_value = None   # кэша нет
-    app.state.db.fetchval.return_value = 10   # в БД сейчас 10 посещений
+    mock_db, mock_redis = mock_app_state
+    mock_redis.get.return_value = None   # кэша нет
+    mock_db.fetchval.return_value = 10   # в БД сейчас 10 посещений
 
-    response = await client.get("/")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/")
 
     assert response.status_code == 200
-    assert response.json() == {"visits": 11}   # 10 + 1
+    assert response.json() == {"visits": 11}
 
-    # Проверяем, какие вызовы были сделаны
-    app.state.redis.get.assert_called_once_with("visits_count")
-    app.state.db.fetchval.assert_called_once_with("SELECT count(*) FROM visits")
-    app.state.db.execute.assert_called_once_with(
-        "INSERT INTO visits (ts) VALUES (NOW())"
-    )
-    app.state.redis.set.assert_called_once_with("visits_count", 11, ex=60)
+    mock_redis.get.assert_called_once_with("visits_count")
+    mock_db.fetchval.assert_called_once_with("SELECT count(*) FROM visits")
+    mock_db.execute.assert_called_once_with("INSERT INTO visits (ts) VALUES (NOW())")
+    mock_redis.set.assert_called_once_with("visits_count", 11, ex=60)
 
 
 @pytest.mark.asyncio
-async def test_root_redis_hit(client):
+async def test_root_redis_hit(mock_app_state):
     """В кэше Redis есть значение – БД для получения счётчика не трогаем."""
-    app.state.redis.get.return_value = "5"    # в кэше лежит 5
-    # fetchval не должен вызываться, поэтому не настраиваем его
+    mock_db, mock_redis = mock_app_state
+    mock_redis.get.return_value = "5"    # в кэше лежит 5
 
-    response = await client.get("/")
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/")
 
     assert response.status_code == 200
-    assert response.json() == {"visits": 6}    # 5 + 1
+    assert response.json() == {"visits": 6}
 
-    app.state.redis.get.assert_called_once_with("visits_count")
-    # Убеждаемся, что запрос count(*) не уходил в БД
-    app.state.db.fetchval.assert_not_called()
-    app.state.db.execute.assert_called_once_with(
-        "INSERT INTO visits (ts) VALUES (NOW())"
-    )
-    app.state.redis.set.assert_called_once_with("visits_count", 6, ex=60)
+    mock_redis.get.assert_called_once_with("visits_count")
+    mock_db.fetchval.assert_not_called()
+    mock_db.execute.assert_called_once_with("INSERT INTO visits (ts) VALUES (NOW())")
+    mock_redis.set.assert_called_once_with("visits_count", 6, ex=60)

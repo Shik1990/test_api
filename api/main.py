@@ -3,6 +3,7 @@ import os
 import asyncpg
 import redis.asyncio as redis
 import asyncio
+from contextlib import asynccontextmanager
 
 app = FastAPI()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://myuser:mypass@db:5432/mydb")
@@ -18,7 +19,7 @@ async def connect_to_db():
             await asyncio.sleep(2)
     raise RuntimeError("Could not connect to DB")
 
-@app.on_event("startup")
+@asynccontextmanager
 async def startup():
     # Подключаемся к БД
     app.state.db = await connect_to_db()
@@ -26,7 +27,7 @@ async def startup():
     # Подключаемся к Redis
     app.state.redis = await redis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
 
-@app.on_event("shutdown")
+@asynccontextmanager
 async def shutdown():
     await app.state.redis.close()
 

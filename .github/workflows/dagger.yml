@@ -1,0 +1,30 @@
+name: Dagger Pipeline
+
+on:
+  push:
+    branches: [main, feature/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dagger:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  # Для OIDC
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dagger
+        run: |
+          curl -L https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=0.10.0 sh
+          dagger version
+
+      - name: Run Dagger pipeline
+        run: |
+          dagger do run \
+            --source . \
+            --tag ${{ github.ref_name }}
